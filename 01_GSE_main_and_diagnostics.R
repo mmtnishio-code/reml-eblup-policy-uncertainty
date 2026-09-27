@@ -1,219 +1,18 @@
 # ============================================================================
-# GSE PUBLIC RELEASE -- MAIN ANALYSIS AND DIAGNOSTICS
+# GSE: MAIN ANALYSIS AND DIAGNOSTICS
 #
-# Manuscript estimand: G = c^T u, where c = c(Y) is the realised REML-EBLUP
-# selection-policy contrast formed in each OUTER Monte Carlo replicate.
+# Reproducibility code for finite-sample prediction uncertainty of a realised
+# REML-EBLUP selection policy. The inferential target is G = c(Y)^T u.
 #
-# IMPORTANT historical-name note:
-# Some validated internal objects/comments use the legacy label "DeltaG".
-# In this release those objects refer to G = c^T u itself; no factor 1/2 is
-# applied.  The biological next-generation response G/2 is not the inferential
-# target of these simulations.
-#
-# Scientific-computation policy for this release:
-#   * the validated production logic is preserved;
-#   * internal names Bayesian_policy / Bayesian_Beta11 are retained because
-#     they are the historically validated RL-UP implementation;
-#   * only one confirmed overwritten legacy function definition was removed;
-#   * no package dependency is introduced (base R only).
+# Historical internal method names Bayesian_policy / Bayesian_Beta11 are
+# retained because they correspond to the validated RL-UP implementation.
+# Base R only; all study phenotypes, breeding values, and pedigrees are simulated.
 # ============================================================================
-
-# ============================================================================
-# PUBLIC REPRODUCIBILITY CODE
-# Prediction error of genetic gain after EBLUP selection
-# Effects of REML variance-component estimation and same-data dependence
-#
-# Version: 2026-08-26
-# Target journal: Genetics Selection Evolution
-# Language: R (base R only)
-#
-# PURPOSE
-# -------
-# This single standalone file contains the validated simulation and diagnostic
-# code used for the manuscript and its Supplementary Information:
-#
-#   1. Simulation I: fixed-policy calibration
-#   2. Simulation II: realised EBLUP-selection policy
-#   3. Conditional full-PEC analysis
-#   4. RAM-N uncertainty propagation
-#   5. RL-UP uncertainty propagation
-#   6. Parametric-bootstrap diagnostics
-#   7. True-variance-component reference analyses
-#   8. Outer-vs-inner second-moment decomposition
-#   9. Inner-reselection mechanism diagnostic
-#  10. Same-sample vs cross-sample policy diagnostic
-#  11. Two-layer common-data / policy-switch decomposition
-#  12. Selection-intensity sensitivity for k = 2, 5, 10
-#
-# IMPORTANT TERMINOLOGY NOTE
-# --------------------------
-# The validated historical code internally uses the labels
-#   "Bayesian_Beta11" and "Bayesian_policy"
-# for the grid-based calculation called RL-UP in the manuscript.
-# These internal names are intentionally preserved here so that the validated
-# computational logic is not altered by cosmetic renaming.
-#
-# In manuscript terminology, RL-UP uses
-#   h2 ~ Beta(1,1)
-#   psi = log(sigma_A^2 + sigma_e^2) ~ N(0,1)
-# with the Jacobian for transformation to
-#   eta = (log sigma_A^2, log sigma_e^2),
-# and propagates the resulting restricted-likelihood x proper-prior weights
-# through EBLUP and the full PEC.  See the manuscript/Supplementary Information
-# for the statistical interpretation and numerical-integration details.
-#
-# REPRODUCIBILITY SETTINGS USED IN THE PAPER
-# ------------------------------------------
-# Pedigree seed:          20260816
-# Information-level seed: 20260850
-# Outer-replicate seed:    20260851
-# Simulation-II h2:        0.05, 0.20, 0.40
-# Simulation-II n_pheno:   60, 90, 120
-# Candidates:              20 latest-generation males
-# Main selected set:       top 5 by EBLUP
-# Outer replicates:        1000
-# RAM-N draws:             2000
-# Bootstrap replicates:    500
-# RL-UP final grid:        41 x 41 (after adaptive coarse-grid localisation)
-#
-# The production calculations are computationally intensive.  Run the small
-# self-tests first, then a pilot, then the full production analysis.
-#
-# BASIC USE
-# ---------
-# 1) Save this text as, for example:
-#      01_GSE_main_and_diagnostics.R
-#
-# 2) Source it in a clean R session:
-#      source("01_GSE_main_and_diagnostics.R")
-#
-# 3) Optional structural self-tests:
-#      self_test_bootstrap_generator_diagnostic()
-#      self_test_outer_vs_trueVC_inner_decomposition()
-#
-# 4) Main Simulation I + II production run:
-#      final <- run_all_final(
-#        S_I = 1000,
-#        S_II = 1000,
-#        M = 2000,
-#        B = 500,
-#        ngrid = 41,
-#        checkpoint_every = 25,
-#        root_output_dir = file.path(getwd(), "paper_output"),
-#        resume = FALSE
-#      )
-#
-# 5) Bootstrap generating-model diagnostic:
-#      boot1000 <- run_bootstrap_generator_diagnostic_final(
-#        S = 1000,
-#        B = 500,
-#        checkpoint_every = 25,
-#        output_dir = file.path(getwd(), "paper_output", "bootstrap_diagnostic"),
-#        resume = FALSE
-#      )
-#
-# 6) Outer-vs-inner decomposition:
-#      dec_inner1000 <- run_outer_vs_trueVC_inner_decomposition(
-#        boot1000 = boot1000,
-#        checkpoint_every = 10,
-#        resume = FALSE
-#      )
-#
-# 7) Inner-reselection diagnostic:
-#      rsel1000 <- run_inner_reselection_VC_diagnostic(
-#        boot1000 = boot1000,
-#        dec_inner1000 = dec_inner1000,
-#        checkpoint_every = 10,
-#        resume = FALSE
-#      )
-#
-# 8) Same-sample vs cross-sample diagnostic:
-#      cross1000 <- run_same_vs_cross_selection_VC_diagnostic(
-#        boot1000 = boot1000,
-#        rsel1000 = rsel1000,
-#        n_cross_shifts = 5,
-#        checkpoint_every = 10,
-#        resume = FALSE
-#      )
-#
-# 9) Two-layer decomposition:
-#      layer1000 <- run_two_layer_alignment_decomposition(
-#        boot1000 = boot1000,
-#        cross_reference = cross1000,
-#        checkpoint_every = 10,
-#        resume = FALSE
-#      )
-#
-# 10) Selection-intensity sensitivity:
-#      ksens1000 <- run_selection_intensity_sensitivity(
-#        boot1000 = boot1000,
-#        layer_reference = layer1000,
-#        k_values = c(2, 5, 10),
-#        checkpoint_every = 10,
-#        resume = FALSE,
-#        MC_R = 5000
-#      )
-#
-# OUTPUTS
-# -------
-# Each production runner writes CSV summaries and RDS objects to a relative
-# output directory.  No absolute user-specific paths are required.
-#
-# PUBLIC-RELEASE CHECKLIST
-# ------------------------
-# Before depositing in a repository, add:
-#   - final manuscript citation / DOI when available;
-#   - repository DOI;
-#   - sessionInfo() from the environment used for the archived run;
-#   - a license file (for example, MIT) if desired.
-#
-# This code intentionally contains no private data and simulates all phenotypes,
-# breeding values, and pedigrees required for the study.
-# ============================================================================
-
-# ======================================================================
-# NEXT PRIORITY DIAGNOSTIC AFTER TRUE-VC ORACLE
-# V3: safe resume; final RDS must match S, B, and scenario key.
-# Pilot and production outputs are separated automatically by S and B.
-# Simulation II: plug-in vs TRUE-VC bootstrap generating model
-# ======================================================================
-#
-# Main quick check:
-#   boot20 <- run_bootstrap_generator_diagnostic_final(
-#     S = 20, B = 100, checkpoint_every = 5, resume = FALSE
-#   )
-#   print(boot20$comparison_table)
-#   print(boot20$diagnostic_table)
-#
-# Main production run:
-#   boot1000 <- run_bootstrap_generator_diagnostic_final(
-#     S = 1000, B = 500, checkpoint_every = 25, resume = TRUE
-#   )
-#
-# Optional exact reproduction check against previous Simulation II:
-#   check <- verify_bootstrap_generator_against_previous(boot1000)
-#   print(check)
-#
-# The file contains the complete earlier production Simulation I/II code
-# plus the new diagnostic extension. No other R file needs to be sourced.
-# ======================================================================
-
 
 # ======================================================================
 # FINAL PRODUCTION CODE
 # Genetic gain uncertainty: Simulation I + Simulation II
 # ======================================================================
-#
-# ONE FILE / ONE SOURCE
-#
-# After saving this file, only:
-#
-#
-# is needed.
-#
-# Then:
-#
-#   final <- run_all_final()
 #
 # ----------------------------------------------------------------------
 # FINAL STUDY STRUCTURE
@@ -1621,13 +1420,6 @@ build_bayesian_posterior_grid <- function(
   )
 }
 
-
-# ----------------------------------------------------------------------
-# The earlier validation-era definition of bayesian_animal_validation()
-# was removed for the public release.  In the validated cumulative source it
-# was overwritten later during source(); only the later production definition
-# is retained below.  No production calculation is changed by this removal.
-# ----------------------------------------------------------------------
 
 # ------------------------------------------------------------
 # Packing and REML diagnostics
@@ -4660,7 +4452,6 @@ bayesian_animal_validation <- function(
 }
 
 
-
 # ======================================================================
 # SIMULATION I: BALANCED SIRE MODEL, FIXED POLICY
 # ======================================================================
@@ -5427,7 +5218,6 @@ simI_summarize_diagnostics <- function(res) {
     )
   )
 }
-
 
 
 # ======================================================================
@@ -6266,7 +6056,6 @@ self_test_final_simulations <- function() {
 # ======================================================================
 
 
-
 # ======================================================================
 # SIMULATION II EXTENSION
 # BOOTSTRAP GENERATING-MODEL DIAGNOSTIC
@@ -6335,33 +6124,6 @@ self_test_final_simulations <- function() {
 #   seed_info  = 20260850
 #   seed_outer = 20260851
 #
-# ONE-FILE USE
-# ------------
-# This file is intended to be appended to the complete production file.
-# After sourcing the combined file, run e.g.
-#
-#   boot20 <- run_bootstrap_generator_diagnostic_final(
-#     S = 20,
-#     B = 100,
-#     checkpoint_every = 5,
-#     resume = FALSE
-#   )
-#
-# Then the production run:
-#
-#   boot1000 <- run_bootstrap_generator_diagnostic_final(
-#     S = 1000,
-#     B = 500,
-#     checkpoint_every = 25,
-#     resume = TRUE
-#   )
-#
-# Main tables:
-#   boot1000$method_table
-#   boot1000$comparison_table
-#   boot1000$diagnostic_table
-#
-# ======================================================================
 
 
 # ----------------------------------------------------------------------
@@ -7840,7 +7602,6 @@ verify_bootstrap_generator_against_previous <- function(
     rows
   )
 }
-
 
 
 # ----------------------------------------------------------------------
@@ -9728,48 +9489,6 @@ self_test_outer_vs_trueVC_inner_decomposition <- function() {
 
 
 # ======================================================================
-# RECOMMENDED PRODUCTION USAGE
-# ======================================================================
-#
-# After the completed V3 object boot1000 exists in the workspace:
-#
-#   dec_inner1000 <- run_outer_vs_trueVC_inner_decomposition(
-#     boot1000 = boot1000,
-#     checkpoint_every = 10,
-#     resume = TRUE
-#   )
-#
-# Then inspect:
-#
-#   print(dec_inner1000$global_check)
-#   print(dec_inner1000$compact_table)
-#   print(dec_inner1000$comparison_table)
-#   print(dec_inner1000$component_table)
-#
-# The most important columns are:
-#
-#   E2_reproduction_knownVC
-#   E2_reproduction_VC
-#   inner_mean_sampleVar_total_over_outer_MSE
-#   existing_trueVC_bootstrap_MSE_ratio
-#
-# Interpretation:
-#
-# * E2_reproduction_knownVC ~ 1, but E2_reproduction_VC << 1
-#     -> bootstrap mainly misses the VC-induced prediction-error component.
-#
-# * E2_reproduction_knownVC << 1 as well
-#     -> holding c(Y) fixed also fails to reproduce part of the known-VC
-#        post-selection error distribution; selection dependence itself is
-#        implicated in addition to VC-induced error.
-#
-# * Both component ratios ~ 1 but coverage remains low
-#     -> second moments are reproduced; investigate interval shape / tails /
-#        studentization rather than variance-component magnitude.
-#
-# ======================================================================
-
-# ======================================================================
 # NEXT MECHANISM DIAGNOSTIC
 # Simulation II: INNER RESELECTION and VC-induced prediction error
 # ======================================================================
@@ -10960,61 +10679,6 @@ print_inner_reselection_VC_diagnostic <- function(x, digits = 4) {
   invisible(z)
 }
 
-# ======================================================================
-# RECOMMENDED USE
-# ======================================================================
-#
-# 1) QUICK STRUCTURAL CHECK (B=100, only 2 outer replicates/scenario):
-#
-#   rsel_check <- run_inner_reselection_VC_diagnostic(
-#     boot1000 = boot1000,
-#     dec_inner1000 = dec_inner1000,
-#     outer_indices = 1:2,
-#     B_inner = 100,
-#     checkpoint_every = 1,
-#     resume = FALSE
-#   )
-#   print(rsel_check$key_table)
-#   print(rsel_check$validation)
-#
-# 2) OPTIONAL PILOT (20 outer replicates/scenario, B=100):
-#
-#   rsel20 <- run_inner_reselection_VC_diagnostic(
-#     boot1000 = boot1000,
-#     dec_inner1000 = dec_inner1000,
-#     outer_indices = 1:20,
-#     B_inner = 100,
-#     checkpoint_every = 5,
-#     resume = TRUE
-#   )
-#   print_inner_reselection_VC_diagnostic(rsel20)
-#
-# 3) FULL PRODUCTION RUN (1000 outer x 500 inner x 9 scenarios):
-#
-#   rsel1000 <- run_inner_reselection_VC_diagnostic(
-#     boot1000 = boot1000,
-#     dec_inner1000 = dec_inner1000,
-#     checkpoint_every = 10,
-#     resume = TRUE
-#   )
-#
-#   print(rsel1000$validation)
-#   print(rsel1000$key_table)
-#   print_inner_reselection_VC_diagnostic(rsel1000)
-#
-# INTERPRETATION
-# --------------
-# - R_VC_fixed should reproduce the previous ~0.11-0.12 in the full run.
-# - If R_VC_plugin_selected increases toward 1, the missing VC error is
-#   largely attributable to VC-estimation x policy-construction interaction.
-# - R_VC_trueVC_selected is a useful negative-control: if plugin-based
-#   selection amplifies eVC much more than true-VC-based selection, this is
-#   direct evidence that selection is aligning the policy with the VC-induced
-#   EBLUP perturbation itself.
-# - Do NOT reinterpret the reselection branch as a CI for the originally
-#   observed realised policy.  It is only a mechanism diagnostic.
-# ======================================================================
-
 
 # ======================================================================
 # EXTENSION: SAME-SAMPLE vs CROSS-SAMPLE POLICY CONSTRUCTION
@@ -12147,50 +11811,6 @@ print_same_vs_cross_selection_VC_diagnostic <- function(x, digits = 4) {
   invisible(z)
 }
 
-# ======================================================================
-# RECOMMENDED USE
-# ======================================================================
-#
-# 1) PILOT: 20 outer x 100 inner, five independent cyclic cross-pairings
-#
-#   cross20 <- run_same_vs_cross_selection_VC_diagnostic(
-#     boot1000 = boot1000,
-#     rsel1000 = rsel1000,
-#     outer_indices = 1:20,
-#     B_inner = 100,
-#     n_cross_shifts = 5,
-#     checkpoint_every = 5,
-#     resume = TRUE
-#   )
-#
-#   print_same_vs_cross_selection_VC_diagnostic(cross20)
-#
-# 2) FULL PRODUCTION: 1000 outer x 500 inner
-#
-#   cross1000 <- run_same_vs_cross_selection_VC_diagnostic(
-#     boot1000 = boot1000,
-#     rsel1000 = rsel1000,
-#     n_cross_shifts = 5,
-#     checkpoint_every = 10,
-#     resume = TRUE
-#   )
-#
-#   print(cross1000$validation)
-#   print(cross1000$key_table)
-#   print_same_vs_cross_selection_VC_diagnostic(cross1000)
-#
-# PRIMARY INTERPRETATION
-# ----------------------
-# - R_VC_same_plugin should reproduce the previous ~0.9-1.05 result.
-# - If R_VC_cross_plugin falls back near R_VC_fixed (~0.11-0.12), then
-#   same-sample selection/error dependence is the key source of amplification.
-# - If R_VC_cross_plugin remains near R_VC_same_plugin, then marginal variation
-#   in selected policies, rather than same-sample alignment, is sufficient.
-# - At low h2, compare inner_bias_same_plugin with inner_bias_cross_plugin.
-#   Collapse of the positive bias under cross-pairing would directly show that
-#   the bias is selection-induced alignment rather than a marginal VC effect.
-# ======================================================================
-
 
 # ======================================================================
 # STEP 5
@@ -12266,39 +11886,6 @@ print_same_vs_cross_selection_VC_diagnostic <- function(x, digits = 4) {
 # used by the preceding diagnostics so that completed production results can be
 # reproduced numerically.
 #
-# ONE-FILE USE
-# ------------
-# This file contains the complete preceding same-vs-cross diagnostic code plus
-# this new STEP 5 extension.  No other R file needs to be sourced.
-#
-# PILOT:
-#
-#
-#   layer20 <- run_two_layer_alignment_decomposition(
-#     boot1000 = boot1000,
-#     cross_reference = cross1000,
-#     outer_indices = 1:20,
-#     B_inner = 100,
-#     checkpoint_every = 5,
-#     resume = FALSE
-#   )
-#
-#   print_two_layer_alignment_decomposition(layer20)
-#
-# PRODUCTION:
-#
-#   layer1000 <- run_two_layer_alignment_decomposition(
-#     boot1000 = boot1000,
-#     cross_reference = cross1000,
-#     checkpoint_every = 10,
-#     resume = TRUE
-#   )
-#
-#   print(layer1000$validation)
-#   print(layer1000$key_table)
-#   print_two_layer_alignment_decomposition(layer1000)
-#
-# ======================================================================
 
 
 twolayer_safe_ratio <- function(a, b) {
@@ -13900,10 +13487,9 @@ print_two_layer_alignment_decomposition <- function(
 
 
 # ======================================================================
-# STEP 7 FIXED v2
+# STEP 7
 # SELECTION-INTENSITY SENSITIVITY ANALYSIS
 # k = 2, 5, 10 selected from 20 candidates
-# FIX: exact stored outer REML / joint-generator reproduction for k=5
 # ======================================================================
 #
 # PURPOSE
@@ -16700,7 +16286,6 @@ paper_method_label <- function(x) {
 
 # ======================================================================
 # STANDALONE TRUE-VC REFERENCE RUNNER
-# Preserved verbatim from the attached final production code.
 # It keeps the realised REML-EBLUP c(Y) fixed and replaces only the
 # variance components used for prediction/PEC; it does not reselect.
 # ======================================================================
@@ -17477,4 +17062,3 @@ verify_true_VC_oracle_against_previous <- function(
 # ======================================================================
 # END STANDALONE TRUE-VC REFERENCE RUNNER
 # ======================================================================
-

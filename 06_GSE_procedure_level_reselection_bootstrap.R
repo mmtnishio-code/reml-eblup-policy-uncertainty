@@ -1,52 +1,12 @@
 # ============================================================================
-# GSE PUBLIC RELEASE -- PROCEDURE-LEVEL RESELECTION BOOTSTRAP
-# Master-RDS-only implementation; scientific logic preserved from the validated
-# 2026-09-25 diagnostic-preserving production script.
-# Procedure-level parametric bootstrap with inner reselection
-# Public-release filename/version: 06_GSE_procedure_level_reselection_bootstrap.R / 2026-09-27
-# Production-analysis version retained internally: 2026-09-25 diagnostic-preserving revision
+# GSE: PROCEDURE-LEVEL RESELECTION BOOTSTRAP
 #
-# PURPOSE
-# -------
-# This add-on is designed for the completed master object
-#   Simulation_II_bootstrap_generator_ALL.rds
-# returned by run_bootstrap_generator_diagnostic_final().
-#
-# It does NOT read the old per-scenario raw RDS files and does NOT depend on
-# boot1000$settings$output_dir.  The manuscript results stored in boot1000 are
-# treated as immutable reference results.
-#
-# The add-on:
-#   1. reconstructs the exact outer Simulation-II samples from the saved
-#      design/information design and the original RNG schedule;
-#   2. can verify that the reconstructed outer samples reproduce the stored
-#      Conditional and true-VC oracle summaries;
-#   3. reuses the EXACT plug-in bootstrap y* draws used by the original
-#      fixed-policy bootstrap (same seed and same joint generator);
-#   4. additionally samples a full u* conditional on each y*;
-#   5. repeats REML -> EBLUP -> top-k selection inside each bootstrap sample;
-#   6. forms the procedure-level bootstrap error
-#
-#          e*_reselect = c(Y*)' uhat* - c(Y*)' u*;
-#
-#   7. reports procedure-level basic-bootstrap coverage and calibration;
-#   8. at the full S=1000, B=500 setting, verifies that the recomputed
-#      fixed-policy bootstrap reproduces the STORED manuscript result before
-#      the new reselection result is interpreted;
-#   9. preserves per-outer bootstrap-error diagnostics (mean, SD, 2.5/97.5%
-#      quantiles, interval limits), policy overlap/switching, and REML-boundary
-#      diagnostics so that low-h2 calibration failures can be investigated
-#      without rerunning the expensive bootstrap.
-#
-# IMPORTANT
-# ---------
-# * Source the validated 01_GSE_main_and_diagnostics.R first.
-# * Then read boot1000 from Simulation_II_bootstrap_generator_ALL.rds.
-# * Existing boot1000$method_table / comparison_table / diagnostic_table are
-#   never modified by this code.
-# * Base R only.
+# Uses the completed Simulation-II bootstrap master object. For each inner
+# sample it repeats REML -> EBLUP -> top-k selection, samples a full breeding-
+# value vector conditional on the same phenotype sample, and evaluates the
+# procedure-level basic-bootstrap interval. The stored fixed-policy results are
+# treated as immutable references for validation. Base R only.
 # ============================================================================
-
 
 RBOOTM_ANALYSIS_VERSION <- "master_only_error_diagnostics_v2_20260925"
 
@@ -2145,102 +2105,7 @@ self_test_reselection_bootstrap_master_only <- function(
 
 
 # ============================================================================
-# RECOMMENDED EXECUTION
-# ============================================================================
-#
-# In a clean R session:
-#
-#   source("01_GSE_main_and_diagnostics.R", encoding = "UTF-8")
-#   source("06_GSE_procedure_level_reselection_bootstrap.R",
-#          encoding = "UTF-8")
-#
-#   boot1000 <- readRDS("Simulation_II_bootstrap_generator_ALL.rds")
-#
-# -----------------------------------------------------------------------------
-# STEP 1. Cheap function smoke test
-# -----------------------------------------------------------------------------
-#
-#   self_test_reselection_bootstrap_master_only(B = 30)
-#
-# -----------------------------------------------------------------------------
-# STEP 2. Recommended: verify the old outer samples BEFORE the expensive run
-#         (9000 outer REML fits; no inner bootstrap)
-# -----------------------------------------------------------------------------
-#
-#   outer_check <- validate_boot1000_outer_reconstruction(
-#     boot1000 = boot1000,
-#     tolerance = 1e-8,
-#     stop_on_failure = TRUE
-#   )
-#
-#   outer_check$all_ok
-#
-# Proceed only if TRUE.
-#
-# -----------------------------------------------------------------------------
-# STEP 3. Pilot: 20 outer replicates/scenario, first 100 of the production
-#         B=500 inner random-number rows
-# -----------------------------------------------------------------------------
-#
-#   rboot20 <- run_reselection_bootstrap_from_master(
-#     boot1000 = boot1000,
-#     outer_indices = 1:20,
-#     B_inner = 100,
-#     checkpoint_every = 5,
-#     resume = FALSE
-#   )
-#
-#   print_reselection_bootstrap_from_master(rboot20)
-#
-# NOTE: stored_fixed_full_* columns are the immutable S=1000/B=500 paper values;
-# do not compare them numerically with a 20/100 pilot as if they were the same
-# Monte Carlo run.  Use the pilot only to inspect stability and runtime.
-#
-# -----------------------------------------------------------------------------
-# STEP 4. Full production: SAME S=1000 and B=500 as the manuscript
-# -----------------------------------------------------------------------------
-#
-#   rboot1000 <- run_reselection_bootstrap_from_master(
-#     boot1000 = boot1000,
-#     B_inner = 500,
-#     checkpoint_every = 10,
-#     resume = TRUE,
-#     tolerance = 1e-8,
-#     stop_on_full_validation_failure = TRUE
-#   )
-#
-#   print_reselection_bootstrap_from_master(rboot1000)
-#   rboot1000$validation_table
-#
-# At full S/B, all of the following MUST be checked before using the new result:
-#   * conditional_plugin reproduces boot1000;
-#   * conditional_trueVC_oracle reproduces boot1000;
-#   * bootstrap_fixed_recomputed reproduces the stored
-#     bootstrap_plugin_generator result.
-#
-# If any full-production validation fails, this function stops before the new
-# result should be interpreted.  Existing manuscript values are never replaced.
-#
-# MAIN NEW MANUSCRIPT COLUMNS
-# ---------------------------
-#   reselect_coverage
-#   reselect_coverage_Wilson_lo
-#   reselect_coverage_Wilson_hi
-#   reselect_MSE_ratio
-#   reselect_bias
-#   reselect_RMSE
-#   reselect_mean_SE
-#   reselect_width
-#   mean_policy_switch_rate
-#   mean_paired_E2_ratio_reselect_over_fixed
-#
-# The same/cross and staged-decomposition analyses remain unchanged and should
-# remain in the manuscript as mechanism diagnostics.
-# ============================================================================
-
-
-# ============================================================================
-# 9. Public-release post-processing helpers for manuscript Supplementary tables
+# 9. Post-processing helpers for manuscript Supplementary tables
 # ============================================================================
 # These helpers use only the saved per-outer diagnostic table.  They do not
 # rerun REML, EBLUP, selection, or bootstrap simulation and do not modify any

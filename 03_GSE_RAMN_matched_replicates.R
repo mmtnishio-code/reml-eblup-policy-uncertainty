@@ -1,50 +1,11 @@
 # ============================================================================
-# GSE PUBLIC RELEASE -- RAM-N MATCHED-REPLICATE COMPARISON
-# This file is intentionally a post-processing analysis of EXISTING production
-# RDS files.  It does not regenerate outer data or alter RAM-N applicability.
-# ============================================================================
-
-# ============================================================
-# GSE paper: RAM-N matched-replicate comparison (V2)
-# ============================================================
+# GSE: RAM-N MATCHED-REPLICATE COMPARISON
 #
-# PURPOSE
-# -------
-# Reanalyse the EXISTING Simulation II production results using only
-# outer Monte Carlo replicates in which RAM-N passed all pre-specified
-# numerical diagnostics.
-#
-# On exactly the same matched replicate set, compare:
-#   1) Conditional
-#   2) RL-UP   (internally stored as Bayesian_policy)
-#   3) RAM-N   (internally stored as RAM_N_policy)
-#
-# No new simulation is performed.
-#
-# The script reads the existing *_final.rds files produced by the
-# Simulation II production runner. Each file is expected to contain:
-#   x$summary
-#   x$raw
-#
-# Each outer replicate in x$raw is expected to contain:
-#   truth
-#   conditional
-#   RAM_N_policy
-#   Bayesian_policy
-#
-# RAM-N applicability is defined EXACTLY as in the production code:
-#   !is.null(replicate$RAM_N_policy)
-#
-# Outputs:
-#   RAMN_matched_method_performance.csv
-#   RAMN_matched_pairwise_differences.csv
-#   RAMN_matched_applicability.csv
-#   RAMN_matched_comparison_full.rds
-#
+# Post-processes existing Simulation-II production RDS files. No new outer
+# simulation is generated. Conditional, RL-UP, and RAM-N are compared on the
+# same outer replicates for which RAM-N passed the pre-specified diagnostics.
 # Base R only.
-# V2: fixes R name-propagation in Wilson-CI and paired-difference extraction.
-# ============================================================
-
+# ============================================================================
 
 # ------------------------------------------------------------
 # 1. Small helpers
@@ -1258,45 +1219,3 @@ self_test_RAMN_matched_replicate_comparison <- function() {
 
   invisible(ans)
 }
-
-
-# ============================================================
-# MAIN USE
-# ============================================================
-#
-# 1) First run the self-test:
-#
-# self_test_RAMN_matched_replicate_comparison()
-#
-#
-# 2) Then analyse the EXISTING production results:
-#
-# matched <- run_RAMN_matched_replicate_comparison(
-#   input_dir = file.path(
-#     getwd(),
-#     "simulation_I_II_final_output",
-#     "Simulation_II"
-#   ),
-#   output_dir = file.path(
-#     getwd(),
-#     "RAMN_matched_replicate_comparison"
-#   ),
-#   R_boot = 5000
-# )
-#
-#
-# If production output is elsewhere, pass input_dir/output_dir explicitly.
-# Use relative paths for repository workflows when possible.
-#
-# 3) Tables for the Supplementary Information:
-#
-# supp_matched <-
-#   make_RAMN_matched_supplementary_table(matched)
-#
-# pair_matched <-
-#   make_RAMN_matched_key_pairwise_table(matched)
-#
-# print(supp_matched)
-# print(pair_matched)
-#
-# ============================================================

@@ -1,5 +1,5 @@
 # ============================================================================
-# GSE PUBLIC RELEASE -- FIGURE REPRODUCTION FROM ANALYSIS OUTPUTS
+# GSE: FIGURE REPRODUCTION FROM ANALYSIS OUTPUTS
 # Base R only.  No manuscript values are hard-coded into plotting functions.
 # ============================================================================
 

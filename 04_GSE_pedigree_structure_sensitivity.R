@@ -1,42 +1,10 @@
 # ============================================================================
-# GSE PUBLIC RELEASE -- PEDIGREE-STRUCTURE SENSITIVITY (Supplementary S9)
+# GSE: PEDIGREE-STRUCTURE SENSITIVITY ANALYSIS (Supplementary S9)
 #
-# This release preserves the attached, validated analysis sequence and the
-# actual output object/column names.  Only execution plumbing was changed:
-#   * no workspace clearing;
-#   * no setwd() or personal absolute path;
-#   * the cumulative public core is sourced from 01_GSE_main_and_diagnostics.R;
-#   * output is written under a relative release output directory.
+# Primary setting: h2=0.20, moderate information, n_pheno=90, k=5.
+# Compares weak, baseline, and strong pedigree structures while preserving the
+# validated analysis and relative-path execution. Base R only.
 # ============================================================================
-
-# ============================================================
-# GSE
-# PEDIGREE-STRUCTURE SENSITIVITY ANALYSIS
-#
-# Primary sensitivity setting:
-#   h2 = 0.20
-#   information = moderate
-#   n_pheno = 90
-#   k = 5
-#
-# Pedigree structures:
-#   weak     : broad uniform parent use
-#   baseline : original manuscript pedigree
-#   strong   : concentrated weighted parent use
-#
-# IMPORTANT:
-#   First run with:
-#       RUN_MODE <- "design_only"
-#
-#   After checking pedigree separation:
-#       RUN_MODE <- "pilot"
-#
-#   Final:
-#       RUN_MODE <- "production"
-# ============================================================
-
-
-# Public release: do not clear the caller's workspace.
 
 options(
   warn = 1,

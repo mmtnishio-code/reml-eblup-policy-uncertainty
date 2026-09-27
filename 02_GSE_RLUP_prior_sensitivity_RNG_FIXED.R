@@ -1,100 +1,20 @@
 # ============================================================================
-# GSE manuscript: RL-UP prior-sensitivity analysis
-# Final analysis script (2026-08-26)
+# GSE: RL-UP PRIOR-SENSITIVITY ANALYSIS
 #
-# PURPOSE
-# -------
-# Evaluate sensitivity of the manuscript's RL-UP results to the proper prior
-# used with the restricted likelihood in Simulation II (realised EBLUP-selection
-# policy).  The outer data, REML fit used for selection, realised top-k policy,
-# and random numbers are shared across priors within each outer replicate.
+# Evaluates sensitivity of RL-UP to the proper prior used with the restricted
+# likelihood in Simulation II. Outer data, realised policy, and random numbers
+# are shared across priors within each outer replicate.
 #
-# MAIN PRIOR (manuscript)
-#   h2 = sigma_A^2 / (sigma_A^2 + sigma_e^2) ~ Beta(1,1)
-#   psi = log(sigma_P^2) = log(sigma_A^2 + sigma_e^2) ~ N(0, 1^2)
+# Main prior:
+#   h2 ~ Beta(1,1)
+#   psi = log(sigma_A^2 + sigma_e^2) ~ N(0,1^2)
+# Sensitivity priors for h2: Beta(2,2) and Beta(0.5,0.5).
 #
-# DEFAULT SENSITIVITY PRIORS
-#   beta11 : h2 ~ Beta(1,1),     psi ~ N(0, 1^2)  [main]
-#   beta22 : h2 ~ Beta(2,2),     psi ~ N(0, 1^2)  [central]
-#   beta05 : h2 ~ Beta(0.5,0.5), psi ~ N(0, 1^2)  [boundary-weighted]
-#
-# OPTIONAL SCALE-PRIOR SENSITIVITY
-#   beta11_scale2 : h2 ~ Beta(1,1), psi ~ N(0, 2^2)
-#
-# IMPORTANT PARAMETERISATION / JACOBIAN
-# ------------------------------------
-# Numerical integration is performed on
-#   eta_A = log(sigma_A^2)
-#   eta_e = log(sigma_e^2)
-# while the prior is defined on (h2, psi).  Therefore the density on the eta
-# grid is proportional to
-#
-#   L_R(eta | y) * pi(h2) * pi(psi) * h2 * (1-h2),
-#
-# because
-#
-#   | d(h2, psi) / d(eta_A, eta_e) | = h2 * (1-h2).
-#
-# This script is an EXTENSION of the public reproducibility code.  Source the
-# public code first, or put 01_GSE_main_and_diagnostics.R in the same folder.
-#
-# RECOMMENDED RUN ORDER
-# ---------------------
-#   source("01_GSE_main_and_diagnostics.R")
-#   source("02_GSE_RLUP_prior_sensitivity_RNG_FIXED.R")
-#
-#   self_test_RLUP_prior_sensitivity()
-#
-#   sens20 <- run_RLUP_prior_sensitivity_final(
-#     S = 20,
-#     M = 500,
-#     output_dir = "RLUP_prior_sensitivity_pilot",
-#     keep_raw = TRUE
-#   )
-#
-#   sens1000 <- run_RLUP_prior_sensitivity_final(
-#     S = 1000,
-#     M = 2000,
-#     ncoarse = 31,
-#     ngrid = 41,
-#     checkpoint_every = 25,
-#     R_boot = 2000,
-#     output_dir = "RLUP_prior_sensitivity_S1000",
-#     keep_raw = TRUE,
-#     resume = TRUE
-#   )
-#
-# To add the wider prior on log(sigma_P^2):
-#   sens1000_scale <- run_RLUP_prior_sensitivity_final(
-#     S = 1000,
-#     priors = default_RLUP_priors(include_scale_wide = TRUE),
-#     M = 2000,
-#     output_dir = "RLUP_prior_sensitivity_with_scale",
-#     keep_raw = TRUE,
-#     resume = TRUE
-#   )
-#
-# The main paper need not use all optional priors.  The three h2 priors are the
-# cleanest primary sensitivity analysis because they alter only pi(h2).
+# Integration is performed on eta_A = log(sigma_A^2), eta_e = log(sigma_e^2).
+# The Jacobian for the (h2, psi) -> (eta_A, eta_e) transformation contributes
+# h2*(1-h2). The RNG order is intentionally fixed as
+# seed_latent -> latent_list -> seed_methods and must not be rearranged.
 # ============================================================================
-
-#
-# RNG ORDER -- FINAL S=1000 PRODUCTION VERSION
-# --------------------------------------------
-# The final manuscript prior-sensitivity run used the SAME RNG ordering as the
-# main Simulation-II production runner:
-#
-#   set.seed(seed_outer)
-#   seed_latent <- sample.int(...)
-#   latent_list <- lapply(seed_latent, ...)
-#   seed_methods <- array(sample.int(...))
-#
-# An earlier extension script constructed seed_methods before latent_list.
-# That changes the method-seed stream because simulate_latent_replicate() sets
-# and advances R's RNG.  The order below is therefore deliberate and MUST NOT
-# be rearranged when reproducing the archived S=1000 results.
-
-
 
 # Source the public core automatically when this file is run from the release
 # directory.  If the core is already loaded, no re-source is performed.
@@ -1497,9 +1417,8 @@ self_test_RLUP_prior_sensitivity <- function() {
 }
 
 
-
 # ---------------------------------------------------------------------------
-# 14. Production-result validation against archived manuscript summaries
+# 14. Production-result validation
 # ---------------------------------------------------------------------------
 
 RLUP_expected_production_rows <- function() {
@@ -1587,74 +1506,3 @@ validate_RLUP_prior_sensitivity_production <- function(
   cat("Observed maximum edge mass across all scenario/prior rows: ", format(global_max_edge_mass, digits = 6), "\n", sep = "")
   invisible(obs)
 }
-
-# ============================================================================
-# FINAL COMMANDS FOR THE MANUSCRIPT
-# ============================================================================
-#
-# 1) Source the validated public code:
-#
-#   source("01_GSE_main_and_diagnostics.R")
-#
-# 2) Source this file:
-#
-#   source("02_GSE_RLUP_prior_sensitivity_RNG_FIXED.R")
-#
-# 3) Run the structural self-test first:
-#
-#   self_test_RLUP_prior_sensitivity()
-#
-# 4) Recommended full analysis:
-#
-#   sens1000 <- run_RLUP_prior_sensitivity_final(
-#     S = 1000,
-#     priors = default_RLUP_priors(),
-#     M = 2000,
-#     ncoarse = 31,
-#     ngrid = 41,
-#     log_drop = 14,
-#     checkpoint_every = 25,
-#     R_boot = 2000,
-#     output_dir = "RLUP_prior_sensitivity_S1000",
-#     keep_raw = TRUE,
-#     resume = TRUE
-#   )
-#
-# 5) Review the paper-ready tables:
-#
-#   supp_main <- make_RLUP_supplementary_table(sens1000)
-#   supp_diff <- make_RLUP_supplementary_difference_table(sens1000)
-#   weak_info <- make_RLUP_weak_information_table(sens1000)
-#
-#   print(supp_main)
-#   print(supp_diff)
-#   print(weak_info)
-#
-#   check_RLUP_edge_mass(sens1000)
-#
-# 6) Optional sensitivity to the total-variance-scale prior:
-#
-#   sens_scale <- run_RLUP_prior_sensitivity_final(
-#     S = 1000,
-#     priors = default_RLUP_priors(include_scale_wide = TRUE),
-#     M = 2000,
-#     output_dir = "RLUP_prior_sensitivity_with_scale",
-#     keep_raw = TRUE,
-#     resume = TRUE
-#   )
-#
-# INTERPRETATION FOR THE PAPER
-# ----------------------------
-# The key question is not whether all point estimates are identical, but whether
-# the main conclusion is stable across reasonable priors:
-#   - RL-UP coverage remains materially better than conditional intervals;
-#   - MSE ratio remains near the calibrated range;
-#   - the qualitative h2 x information pattern is unchanged;
-#   - changes in posterior h2, interval width, and G point prediction are
-#     small enough not to alter the manuscript's substantive conclusion.
-#
-# In the weak-information h2=0.05 conditions, some prior sensitivity is expected
-# and should be reported rather than hidden.  The paper should state this as a
-# property of weak restricted-likelihood information near the boundary, not as
-# a failure of prior specification per se.
-# ============================================================================
