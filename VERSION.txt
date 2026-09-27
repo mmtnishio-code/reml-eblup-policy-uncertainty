@@ -1,0 +1,9 @@
+GSE public reproducibility code
+Release candidate: 2026-09-27
+
+This package includes analysis scripts 01-06, including the final procedure-level
+reselection bootstrap used in the current manuscript, and the Windows/RStudio
+nested-source path hotfix for the pedigree-structure sensitivity script.
+
+Create the archival v1.0.0 tag only after the definitive S=1000/B=500 run and
+all production-output validations have passed.

@@ -1,0 +1,16 @@
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+*.Rproj
+
+# Generated production/pilot output
+paper_output/
+*_checkpoint.rds
+*checkpoint*.rds
+*.tmp
+*.log
+
+# OS/editor noise
+.DS_Store
+Thumbs.db

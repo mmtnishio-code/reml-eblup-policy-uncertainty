@@ -1,0 +1,11 @@
+Final environment archival step — COMPLETED
+===========================================
+
+The exact output of sessionInfo() from the definitive machine used for the validated release is archived as:
+
+    sessionInfo_final.txt
+
+The capture was produced on the user's validated runtime environment and is retained verbatim.
+SHA256SUMS.txt and the release ZIP were regenerated after adding the file.
+
+Do not replace this file with a reconstructed or inferred environment description.
